@@ -1,0 +1,5 @@
+sudo make clean
+sudo make mrproper
+sudo make localmodconfig
+sudo make menuconfig
+

@@ -1472,6 +1472,24 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	put_flush_tlb_info();
 }
 
+// added _probe for perf testing
+void flush_tlb_kernel_range_probe(unsigned long start, unsigned long end)
+{
+        struct flush_tlb_info *info;
+
+        guard(preempt)();
+
+        info = get_flush_tlb_info(NULL, start, end, PAGE_SHIFT, false,
+                                  TLB_GENERATION_INVALID);
+
+        if (info->end == TLB_FLUSH_ALL)
+                kernel_tlb_flush_all(info);
+        else
+                kernel_tlb_flush_range(info);
+
+        put_flush_tlb_info();
+}
+
 /*
  * This can be used from process context to figure out what the value of
  * CR3 is without needing to do a (slow) __read_cr3().

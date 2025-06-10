@@ -94,6 +94,16 @@
 #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
 #endif
 
+
+#include <linux/module.h>
+
+// Gal Dvir - for k_module C&C
+int my_feature_galdv = 1;
+EXPORT_SYMBOL(my_feature_galdv);
+
+int my_feature_print = 1;
+EXPORT_SYMBOL(my_feature_print);
+
 static vm_fault_t do_fault(struct vm_fault *vmf);
 static vm_fault_t do_anonymous_page(struct vm_fault *vmf);
 static bool vmf_pte_changed(struct vm_fault *vmf);
@@ -5935,6 +5945,36 @@ split:
 	return VM_FAULT_FALLBACK;
 }
 
+
+
+/*------ Gal & Yoav & Nadav ----------------------------------------------------------------------*/
+
+static void simulate_kernel_linear_map_flush(struct vm_fault *vmf, pte_t entry)
+{
+    // Extract the page from the PTE entry
+    struct page *page = pte_page(entry);
+    if (!page) {
+        pr_warn("Failed to get page from PTE entry\n");
+        return;
+    }
+
+    // Get the physical address from the page
+    unsigned long phys_addr = page_to_phys(page);
+
+    // Convert physical address to kernel virtual address
+    unsigned long kernel_linear_start = (unsigned long)__va(phys_addr);
+    unsigned long kernel_linear_end = kernel_linear_start + PAGE_SIZE;
+
+    // Log the simulated flush
+    if(!my_feature_print) {
+    	pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx\n",
+            vmf->address, phys_addr);
+    }
+    // Perform TLB flush for the range
+    flush_tlb_kernel_range_probe(kernel_linear_start, kernel_linear_end);
+}
+/*--------------------------------------------------------------------------------------------------*/
+
 /*
  * These routines also need to handle stuff like marking pages dirty
  * and/or accessed for architectures that don't do it in hardware (most
@@ -5992,16 +6032,29 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 			vmf->pte = NULL;
 		}
 	}
-
-	if (!vmf->pte)
-		return do_pte_missing(vmf);
-
-	if (!pte_present(vmf->orig_pte))
-		return do_swap_page(vmf);
-
-	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
-		return do_numa_page(vmf);
-
+	//-------- Gal & Yoav & Nadav--------------------------------------//
+        if (!vmf->pte) {
+                vm_fault_t tmp = do_pte_missing(vmf);
+                if (!my_feature_galdv) {
+                        simulate_kernel_linear_map_flush(vmf, entry);
+                }
+                return tmp;
+        }
+        if (!pte_present(vmf->orig_pte)) {
+                vm_fault_t tmp = do_swap_page(vmf);
+                if (!my_feature_galdv) {
+                        simulate_kernel_linear_map_flush(vmf, entry);
+                }
+                return tmp;
+        }
+        if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma)) {
+                vm_fault_t tmp = do_numa_page(vmf);
+                if (!my_feature_galdv) {
+                        simulate_kernel_linear_map_flush(vmf, entry);
+                }
+                return tmp;
+        }
+	//-----------------------------------------------------------------//
 	spin_lock(vmf->ptl);
 	entry = vmf->orig_pte;
 	if (unlikely(!pte_same(ptep_get(vmf->pte), entry))) {
