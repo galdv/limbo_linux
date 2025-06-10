@@ -5993,14 +5993,45 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		}
 	}
 
-	if (!vmf->pte)
+	if (!vmf->pte) {
+		// --- START OF SIMULATED KERNEL LINEAR MAPPING TLB FLUSH --- // Need to get the 'page' from the 'entry' 
+		struct page *page = pte_page(entry); 
+
+		// Get the page from the (newly accessed/dirty) PTE 
+		unsigned long phys_addr = page_to_phys(page); 
+		unsigned long kernel_linear_start = (unsigned long)__va(phys_addr); 
+		unsigned long kernel_linear_end = kernel_linear_start + PAGE_SIZE; pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx\n", vmf->address, phys_addr); 
+		flush_tlb_kernel_range(kernel_linear_start, kernel_linear_end);
+		// --- END OF SIMULATION ---
+
 		return do_pte_missing(vmf);
+	}
 
-	if (!pte_present(vmf->orig_pte))
+	if (!pte_present(vmf->orig_pte)) {
+		// --- START OF SIMULATED KERNEL LINEAR MAPPING TLB FLUSH --- // Need to get the 'page' from the 'entry' 
+		struct page *page = pte_page(entry); 
+
+		// Get the page from the (newly accessed/dirty) PTE 
+		unsigned long phys_addr = page_to_phys(page); 
+		unsigned long kernel_linear_start = (unsigned long)__va(phys_addr); 
+		unsigned long kernel_linear_end = kernel_linear_start + PAGE_SIZE; pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx\n", vmf->address, phys_addr); 
+		flush_tlb_kernel_range(kernel_linear_start, kernel_linear_end);
+		// --- END OF SIMULATION ---
 		return do_swap_page(vmf);
+	}
 
-	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
+	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma)) {
+		// --- START OF SIMULATED KERNEL LINEAR MAPPING TLB FLUSH --- // Need to get the 'page' from the 'entry' 
+		struct page *page = pte_page(entry); 
+
+		// Get the page from the (newly accessed/dirty) PTE 
+		unsigned long phys_addr = page_to_phys(page); 
+		unsigned long kernel_linear_start = (unsigned long)__va(phys_addr); 
+		unsigned long kernel_linear_end = kernel_linear_start + PAGE_SIZE; pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx\n", vmf->address, phys_addr); 
+		flush_tlb_kernel_range(kernel_linear_start, kernel_linear_end);
+		// --- END OF SIMULATION ---
 		return do_numa_page(vmf);
+	}
 
 	spin_lock(vmf->ptl);
 	entry = vmf->orig_pte;
