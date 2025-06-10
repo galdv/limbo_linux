@@ -34,6 +34,9 @@
 #include <linux/cacheinfo.h>
 #include <linux/rcuwait.h>
 
+#define GAL_YOAV_ADDR_start 	0x7000A000UL
+#define GAL_YOAV_ADDR_end	 	0x7000F000UL
+
 struct mempolicy;
 struct anon_vma;
 struct anon_vma_chain;
@@ -1005,6 +1008,14 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
 static inline bool vma_is_anonymous(struct vm_area_struct *vma)
 {
 	return !vma->vm_ops;
+}
+
+/* Gal Yoav - limbo*/
+
+static inline bool vma_is_initial_limbo(const struct vm_area_struct *vma)
+{
+	return vma->vm_start < GAL_YOAV_ADDR_end &&
+		vma->vm_end > GAL_YOAV_ADDR_start;
 }
 
 /*

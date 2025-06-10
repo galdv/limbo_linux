@@ -29,6 +29,10 @@
 #include <asm/tlbflush.h>
 #include "internal.h"
 
+
+#define GAL_YOAV_ADDR 0x7000A000UL
+
+
 #define SEQ_PUT_DEC(str, val) \
 		seq_put_decimal_ull_width(m, str, (val) << (PAGE_SHIFT-10), 8)
 void task_mem(struct seq_file *m, struct mm_struct *mm)
@@ -283,7 +287,10 @@ static void get_vma_name(struct vm_area_struct *vma,
 		*name = "[vdso]";
 		return;
 	}
-
+	if (vma_is_initial_limbo(vma)) {
+		*name = "[limbo]";
+		return;
+	}
 	if (vma_is_initial_heap(vma)) {
 		*name = "[heap]";
 		return;
