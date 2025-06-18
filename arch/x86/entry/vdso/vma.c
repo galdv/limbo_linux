@@ -248,15 +248,6 @@ static int load_vdso32(void)
 #ifdef CONFIG_X86_64
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	/*if (!vdso64_enabled)
-		return 0;
-
-	return map_vdso(&vdso_image_64, 0);*/
-		/*if (!vdso64_enabled)
-		return 0;
-
-	return map_vdso_randomized(&vdso_image_64);*/
-
 //-------------------------------------------------------------------------------------------------------------------// Gal_Yoav
         int ret;
         unsigned long addr;
@@ -265,26 +256,19 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
         * 1) Map the 64‑bit vDSO if enabled.
         *    If this errors out, we abort execve immediately.
         */
-        if (vdso64_enabled)
-                ret = map_vdso_randomized(&vdso_image_64);
+	if (!vdso64_enabled) {
+		ret = 0;
+	} else {
+		ret = map_vdso(&vdso_image_64, 0);
+	}
 
-        /*
-        * 2) Reserve first Gal_Yoav page at GAL_YOAV_PAGE1.
-        *    Fails with -EEXIST if something’s already there.
-        */
         addr = vm_mmap(NULL,
                    GAL_YOAV_ADDR,
                    GAL_YOAV_SIZE,
                    PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
                    0);
-        if ((long)addr < 0)
-                return (int)addr;
 
-        /*
-        * 3) Reserve second Gal_Yoav page at GAL_YOAV_PAGE2.
-        *    On failure, unmap the first and abort.
-        */
 
         addr_2 = vm_mmap(NULL,
                    GAL_YOAV_ADDR_2,
@@ -292,12 +276,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
                    PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE,
                    0);
-        if ((long)addr_2 < 0) {
-                //vm_munmap(GAL_YOAV_ADDR, GAL_YOAV_SIZE);
-                return (int)addr_2;
-        }
 
-        /* 4) Success — return 0 so execve() continues normally */
         return ret;
 //-------------------------------------------------------------------------------------------------------------------//
 

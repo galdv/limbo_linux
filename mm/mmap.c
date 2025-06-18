@@ -59,6 +59,27 @@
 
 #include "internal.h"
 
+
+//---------------------------------------------------------------------------------------// galdv
+
+#include <linux/module.h>
+
+// Gal Dvir - for k_module C&C
+int my_feature_galdv = 1;
+EXPORT_SYMBOL(my_feature_galdv);
+
+#define GAL_YOAV_ADDR 0x7000A000UL
+
+#define MY_SHARED_ALLOWED_START 0x7000A000UL
+#define MY_SHARED_ALLOWED_END   0x7000F000UL
+#define MY_SHARED_LEN           (MY_SHARED_ALLOWED_END - MY_SHARED_ALLOWED_START)
+
+bool addr_in_my_range(unsigned long addr, unsigned long len) {
+	return addr < MY_SHARED_ALLOWED_END && (addr + len) > MY_SHARED_ALLOWED_START;
+}
+
+//---------------------------------------------------------------------------------------//
+
 #ifndef arch_mmap_check
 #define arch_mmap_check(addr, len, flags)	(0)
 #endif
@@ -409,6 +430,16 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	addr = __get_unmapped_area(file, addr, len, pgoff, flags, vm_flags);
 	if (IS_ERR_VALUE(addr))
 		return addr;
+
+	//------------------------------------------------------------------------------//
+	// galdv
+	//------------------------------------------------------------------------------//
+	/*  Block ALL mappings that try to overlap with our reserved region */
+	if (addr_in_my_range(addr, len)) {
+		pr_warn("Blocked mmap() into reserved region (non-MAP_SHARED): 0x%lx\n", addr);
+		return -EINVAL;
+	}
+	//------------------------------------------------------------------------------//
 
 	if (flags & MAP_FIXED_NOREPLACE) {
 		if (find_vma_intersection(mm, addr, addr + len))

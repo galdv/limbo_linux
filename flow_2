@@ -1,0 +1,6 @@
+sudo make prepare
+sudo make modules_prepare
+sudo make -j$(nproc) > ~/compile_output.txt
+#sudo make modules_install
+#sudo make install
+#sudo update-grub
