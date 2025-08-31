@@ -5949,15 +5949,20 @@ split:
 
 /*------ Gal & Yoav & Nadav ----------------------------------------------------------------------*/
 
-static void simulate_kernel_linear_map_flush(struct vm_fault *vmf, pte_t entry)
+static void simulate_kernel_linear_map_flush(struct vm_fault *vmf, int num)
 {
-    // Extract the page from the PTE entry
-    struct page *page = pte_page(entry);
+    //get the page from vmf struct and Check
+    struct page *page = vmf->page;
+    /*----------------------------------------------------------------*/
+    if (!page && vmf->pte && pte_present(*vmf->pte)) {
+        page = pte_page(*vmf->pte);  // fallback
+    }
+    /*----------------------------------------------------------------*/
     if (!page) {
-        pr_warn("Failed to get page from PTE entry\n");
+        pr_warn("Number %d : Failed to get page from PTE entry\n", num);
         return;
     }
-
+    /*----------------------------------------------------------------*/
     // Get the physical address from the page
     unsigned long phys_addr = page_to_phys(page);
 
@@ -5967,8 +5972,8 @@ static void simulate_kernel_linear_map_flush(struct vm_fault *vmf, pte_t entry)
 
     // Log the simulated flush
     if(!my_feature_print) {
-    	pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx\n",
-            vmf->address, phys_addr);
+    	pr_info("Simulating kernel linear map flush after ptep_set_access_flags: VA=0x%lx PA=0x%lx  ##  number=%d  ##\n",
+            vmf->address, phys_addr, num);
     }
     // Perform TLB flush for the range
     flush_tlb_kernel_range_probe(kernel_linear_start, kernel_linear_end);
@@ -6036,21 +6041,21 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
         if (!vmf->pte) {
                 vm_fault_t tmp = do_pte_missing(vmf);
                 if (!my_feature_galdv) {
-                        simulate_kernel_linear_map_flush(vmf, entry);
+                        simulate_kernel_linear_map_flush(vmf, 1);
                 }
                 return tmp;
         }
         if (!pte_present(vmf->orig_pte)) {
                 vm_fault_t tmp = do_swap_page(vmf);
                 if (!my_feature_galdv) {
-                        simulate_kernel_linear_map_flush(vmf, entry);
+                        simulate_kernel_linear_map_flush(vmf, 2);
                 }
                 return tmp;
         }
         if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma)) {
                 vm_fault_t tmp = do_numa_page(vmf);
                 if (!my_feature_galdv) {
-                        simulate_kernel_linear_map_flush(vmf, entry);
+                        simulate_kernel_linear_map_flush(vmf, 3);
                 }
                 return tmp;
         }
